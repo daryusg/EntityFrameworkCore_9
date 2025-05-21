@@ -9,6 +9,95 @@ context.Database.MigrateAsync(); //cip...63. NOTE: this will create the database
 //for sqlite users to see where the db file gets created:
 //Console.WriteLine($"Database file location: {context.DbPath}");
 
+//filtering includes
+//get all teams and only home matches where they have scored
+//await InsertMoreMatches();
+async Task InsertMoreMatches() //cip...81
+{
+    var match1 = new Match
+    {
+        AwayTeamId = 2,
+        HomeTeamId = 3,
+        HomeTeamScore = 1,
+        AwayTeamScore = 0,
+        Date = new DateTime(2025, 05, 21),
+        TicketPrice = 20,
+        CreatedBy = "TestUser1"
+    };
+    var match2 = new Match
+    {
+        AwayTeamId = 2,
+        HomeTeamId = 1,
+        HomeTeamScore = 1,
+        AwayTeamScore = 0,
+        Date = new DateTime(2025, 05, 21),
+        TicketPrice = 20,
+        CreatedBy = "TestUser1"
+    };
+    var match3 = new Match
+    {
+        AwayTeamId = 1,
+        HomeTeamId = 3,
+        HomeTeamScore = 1,
+        AwayTeamScore = 0,
+        Date = new DateTime(2025, 05, 21),
+        TicketPrice = 20,
+        CreatedBy = "TestUser1"
+    };
+    var match4 = new Match
+    {
+        AwayTeamId = 4,
+        HomeTeamId = 3,
+        HomeTeamScore = 0,
+        AwayTeamScore = 1,
+        Date = new DateTime(2025, 05, 21),
+        TicketPrice = 20,
+        CreatedBy = "TestUser1"
+    };
+    await context.AddRangeAsync(match1, match2, match3, match4);
+    await context.SaveChangesAsync();
+}
+
+//await FilteringIncludes();
+async Task FilteringIncludes() //cip...81
+{
+    var teams = await context.Teams
+        .Include("Coach")
+        .Include(q => q.HomeMatches.Where(q => q.HomeTeamScore > 0))
+        .ToListAsync();
+
+    foreach (var team in teams)
+    {
+        Console.WriteLine($"Team: {team.Name} ({team.Coach.Name})");
+        foreach (var match in team.HomeMatches)
+        {
+            Console.WriteLine($"\tMatch: {match.Id}, Home Team Score: {match.HomeTeamScore}, Away Team Score: {match.AwayTeamScore}");
+        }
+    }
+}
+
+//projects and anonymous types
+await ProjectsAndAnonymousTypes();
+async Task ProjectsAndAnonymousTypes() //cip...81
+{
+    //NOTE: i'm accessing the Coach table without a .Include.
+    var teams = await context.Teams
+        .Select(q => new TeamDetails
+        {
+            TeamId = q.Id,
+            TeamName = q.Name,
+            CoachName = q.Coach.Name,
+            TotalHomeGoals = q.HomeMatches.Sum(q => q.HomeTeamScore),
+            TotalAwayGoals = q.AwayMatches.Sum(q => q.AwayTeamScore)
+        })
+        .ToListAsync();
+
+    foreach (var team in teams)
+    {
+        Console.WriteLine($"Team: {team.TeamName} ({team.CoachName}) Total Home Goals:{team.TotalHomeGoals} Total Away Goals:{team.TotalAwayGoals}");
+    }
+}
+
 
 #region Related Data  //cip...76
 
@@ -213,7 +302,7 @@ async Task LazyLoadingData1Async() //cip...80
     }
 }
 
-await LazyLoadingData2Async();
+//await LazyLoadingData2Async();
 async Task LazyLoadingData2Async() //cip...80
 {
     foreach (var league in context.Leagues)
@@ -772,4 +861,14 @@ class TeamInfo
     public int Id { get; set; }
     public string Name { get; set; }
     public DateTime CreatedDate { get; set; }
+}
+
+class TeamDetails //cip...82
+{
+    public int TeamId { get; set; }
+    public string TeamName { get; set; }
+    public string CoachName { get; set; }
+
+    public int TotalHomeGoals { get; set; }
+    public int TotalAwayGoals { get; set; }
 }
