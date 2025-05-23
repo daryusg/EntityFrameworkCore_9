@@ -4,6 +4,7 @@ using EntityFrameworkCore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EntityFrameworkCore.Data.Migrations
 {
     [DbContext(typeof(FootballLeagueDbContext))]
-    partial class FootballLeagueDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250523100845_InitialMigration")]
+    partial class InitialMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -257,7 +260,6 @@ namespace EntityFrameworkCore.Data.Migrations
                             CoachId = 1,
                             CreatedBy = "TestUser1",
                             CreatedDate = new DateTime(2025, 5, 9, 18, 0, 0, 0, DateTimeKind.Unspecified),
-                            LeagueId = 1,
                             Name = "Tivoli Gardens FC"
                         },
                         new
@@ -266,7 +268,6 @@ namespace EntityFrameworkCore.Data.Migrations
                             CoachId = 2,
                             CreatedBy = "TestUser1",
                             CreatedDate = new DateTime(2025, 5, 9, 18, 0, 1, 0, DateTimeKind.Unspecified),
-                            LeagueId = 1,
                             Name = "Waterhouse FC"
                         },
                         new
@@ -275,7 +276,6 @@ namespace EntityFrameworkCore.Data.Migrations
                             CoachId = 3,
                             CreatedBy = "TestUser1",
                             CreatedDate = new DateTime(2025, 5, 9, 18, 0, 2, 0, DateTimeKind.Unspecified),
-                            LeagueId = 1,
                             Name = "Humble Lions FC"
                         });
                 });

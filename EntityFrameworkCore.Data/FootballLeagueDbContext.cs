@@ -20,14 +20,11 @@ public class FootballLeagueDbContext : DbContext
     {
         //base.OnConfiguring(optionsBuilder); //cip...16. default not needed.
         //using sqlserver
-        //optionsBuilder.UseSqlServer("Data Source=localhost,1448;Initial Catalog=FootballLeague_EFCore;Encrypt=False;user id=sa;password=Str0ngPa$$w0rd;"); //to be tested
-        //optionsBuilder.UseSqlite($"Data Source=FootballLeague_EFCore.db");
-        optionsBuilder.UseSqlite($"Data Source={DbPath}")
+        optionsBuilder.UseSqlServer("Data Source=localhost,1448;Initial Catalog=FootballLeague_EFCore;Encrypt=False;user id=sa;password=Str0ngPa$$w0rd;")
             .UseLazyLoadingProxies() //cip...80
-            //.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) //cip...42. set the default tracking behavior to NoTracking.
             .LogTo(Console.WriteLine, LogLevel.Information)
             .EnableSensitiveDataLogging()
-            .EnableDetailedErrors(); //run dotnet ef database update --startup-project ./EntityFrameworkCore.Console --project ./EntityFrameworkCore.Data (vs code terminal) to create the database file (in the common location).
+            .EnableDetailedErrors();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -36,11 +33,16 @@ public class FootballLeagueDbContext : DbContext
         //modelBuilder.ApplyConfiguration(new TeamConfiguration()); //cip...59
         //modelBuilder.ApplyConfiguration(new LeagueConfiguration()); //cip...59
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly()); //cip...59. apply all configurations in the assembly.
+        modelBuilder.Entity<LeaguesAndTeamsView>().HasNoKey().ToView("vw_LeaguesAndTeams"); //cip...88. view for leagues and teams.
+        modelBuilder.HasDbFunction(typeof(FootballLeagueDbContext).GetMethod(nameof(GetEarliestTeamMatch), new[] { typeof(int) })).HasName("fn_GetEarliestMatch"); //cip...92.
     }
+
+    public DateTime GetEarliestTeamMatch(int teamId) => throw new NotImplementedException(); //cip...92
 
     public DbSet<Team> Teams { get; set; } //cip...12
     public DbSet<Coach> Coaches { get; set; } //cip...12
     public DbSet<League> Leagues { get; set; } //cip...57
     public DbSet<Match> Matches { get; set; } //cip...57
+    public DbSet<LeaguesAndTeamsView> LeaguesAndTeams_View { get; set; } //cip...88. view for leagues and teams.
     public string DbPath { get; private set; }
 }

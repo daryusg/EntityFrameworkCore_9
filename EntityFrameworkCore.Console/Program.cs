@@ -1,18 +1,172 @@
 ﻿using EntityFrameworkCore.Data;
 using EntityFrameworkCore.Domain;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 //first i need an instance of the context
 using var context = new FootballLeagueDbContext();
-context.Database.MigrateAsync(); //cip...63. NOTE: this will create the database if it doesn't exist and apply any pending migrations. it will not create the database if it already exists.
+//context.Database.MigrateAsync(); //cip...63. NOTE: this will create the database if it doesn't exist and apply any pending migrations. it will not create the database if it already exists.
 
 //for sqlite users to see where the db file gets created:
 //Console.WriteLine($"Database file location: {context.DbPath}");
 
+#region Raw SQL //cip...88
+//await QueryingKeylessEntityOrView(); //cip...88
+async Task QueryingKeylessEntityOrView()
+{
+    var details = await context.LeaguesAndTeams_View.ToListAsync();
+    foreach (var team in details)
+    {
+        Console.WriteLine($"{team.TeamName} - {team.LeagueName}");
+    }
+}
+
+//FromSqlRaw, FromSql, FromSqlInterpolated //cip...89
+//await ExecutingRawSQL();
+async Task ExecutingRawSQL() //cip...89
+{
+    //NOTE: this is a raw sql query. it will not be tracked by the context.
+    Console.WriteLine("Enter a team name:");
+    var teamName = Console.ReadLine();
+
+    var teamNameParam = new SqlParameter("teamName", teamName); //<--- prevents sql injection ---<<<
+
+    //FromSqlRaw
+    var teams = context.Teams.FromSqlRaw("SELECT * FROM Teams WHERE Name = @teamName", teamNameParam);
+    foreach (var t in teams)
+    {
+        Console.WriteLine($"Team: {t.Name}, Created Date: {t.CreatedDate}");
+    }
+
+    //FromSql
+    teams = context.Teams.FromSql($"SELECT * FROM Teams WHERE Name = {teamName}");
+    foreach (var t in teams)
+    {
+        Console.WriteLine($"Team: {t.Name}, Created Date: {t.CreatedDate}");
+    }
+
+    //FromSqlInterpolated
+    teams = context.Teams.FromSqlInterpolated($"SELECT * FROM Teams WHERE Name = {teamName}");
+    foreach (var t in teams)
+    {
+        Console.WriteLine($"Team: {t.Name}, Created Date: {t.CreatedDate}");
+    }
+}
+
+//mixing with linq //cip...90
+//await RawSqlWithLinq();
+async Task RawSqlWithLinq() //cip...90
+{
+    //FromSql
+    Console.WriteLine("Enter a team name:");
+    var teamName = Console.ReadLine();
+    var teams = context.Teams.FromSql($"SELECT * FROM Teams")
+        .Where(q => q.Name.Contains(teamName))
+        .OrderBy(q => q.Id)
+        .Include("League");
+    foreach (var t in teams)
+    {
+        Console.WriteLine($"Team: {t.Name}, Created Date: {t.CreatedDate}");
+    }
+}
+
+/*executing stored procedures - na to sqlite
+var leagueId = 1;
+var league = context.Leagues
+    .FromSqlInterpolated($"EXECUTE dbo.GetLeagueById {leagueId}");
+*/
+//await NonQueryingStatement();
+async Task NonQueryingStatement()
+{
+    //non-querying statement
+    var someNewTeamName = "FC Barcelona";
+    var someOldTeamName = "New Team";
+    var success = await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE Teams SET Name = {someNewTeamName} WHERE Name = {someOldTeamName}");
+    Console.WriteLine($"Updated {success} records.");
+    //cip...90 7:00 tw mentions it's best to use linq's ExecuteUpdate & ExecuteDelete on the tables instead of constructing raw sql statements.
+    var teamToDeleteId = 1;
+    //var teamDeletedSuccess = await context.Database.ExecuteSqlInterpolatedAsync($"EXECUTE dbo.DeleteTeam {teamToDeleteId}");
+}
+
+//query scalar or non-entity type
+//await QueryingScalar();
+async Task QueryingScalar()
+{
+    //scalar query
+    //var teamIds = context.Database.SqlQuery<int>($"SELECT Id FROM Teams")
+    var teamIds = context.Database.SqlQuery<TeamInfo>($"SELECT Id, Name, CreatedDate FROM Teams")
+        .ToList();
+    //NOTE: the selected colmnns must match the custom data type.
+    Console.WriteLine($"Team Count: {teamIds.Count}, Team Sum: {teamIds.Sum(q => q.Id)}");
+}
+
+//execute user-defined query
+await ExecuteUserDefinedFunctionAsync();
+async Task ExecuteUserDefinedFunctionAsync()
+{
+    int teamId = 0;
+    do
+    {
+        Console.Write("Enter team ID: ");
+        try
+        {
+            teamId = Convert.ToInt32(Console.ReadLine());
+        }
+        catch
+        {
+            //exit the program if non-integer entered
+            break;
+        }
+
+        string teamName = "";
+        bool bTeamFound = false;
+        DateTime? earliestMatch = null;
+
+        var team = await context.Teams.FindAsync(teamId);
+        if (team == null)
+        {
+            teamName = "Not found";
+        }
+        else
+        {
+            //var earliestMatch = context.GetEarliestTeamMatch(teamId); //cip...92. NOTE: (obviously) see FootballLeagueDbContext.cs for the function definition.
+            bTeamFound = true;
+            teamName = team.Name;
+            try
+            {
+                earliestMatch = context.Teams
+                    .Where(t => t.Id == teamId)
+                    .Select(t => context.GetEarliestTeamMatch(t.Id))
+                    .FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("Nullable object must have a value", StringComparison.OrdinalIgnoreCase))
+                {
+                    //the team exists but hasn't played any matches yet
+                    Console.WriteLine($"Team: {teamName} (Id: {teamId}), No matches played.");
+                    continue;
+                }
+                else
+                {
+                    //just display the error message and exit
+                    Console.WriteLine(ex.Message);
+                    break;
+                }
+            }
+        }
+        Console.WriteLine($"Team: {teamName} (Id: {teamId}){(bTeamFound ? $", Earliest match: {earliestMatch}" : "")}");
+    }
+    while (true);
+}
+#endregion
+
+#region FilteringIncludes //cip...81
+
 //filtering includes
 //get all teams and only home matches where they have scored
-//await InsertMoreMatches();
-async Task InsertMoreMatches() //cip...81
+//await InsertMoreMatchesAsync();
+async Task InsertMoreMatchesAsync() //cip...81
 {
     var match1 = new Match
     {
@@ -20,8 +174,9 @@ async Task InsertMoreMatches() //cip...81
         HomeTeamId = 3,
         HomeTeamScore = 1,
         AwayTeamScore = 0,
-        Date = new DateTime(2025, 05, 21),
-        TicketPrice = 20,
+        Date = new DateTime(2025, 05, 20, 14, 30, 0),
+        TicketPrice = 22.5m,
+        CreatedDate = DateTime.Now,
         CreatedBy = "TestUser1"
     };
     var match2 = new Match
@@ -30,8 +185,9 @@ async Task InsertMoreMatches() //cip...81
         HomeTeamId = 1,
         HomeTeamScore = 1,
         AwayTeamScore = 0,
-        Date = new DateTime(2025, 05, 21),
-        TicketPrice = 20,
+        Date = new DateTime(2025, 05, 21, 13, 0, 0),
+        TicketPrice = 22.5m,
+        CreatedDate = DateTime.Now,
         CreatedBy = "TestUser1"
     };
     var match3 = new Match
@@ -40,8 +196,9 @@ async Task InsertMoreMatches() //cip...81
         HomeTeamId = 3,
         HomeTeamScore = 1,
         AwayTeamScore = 0,
-        Date = new DateTime(2025, 05, 21),
-        TicketPrice = 20,
+        Date = new DateTime(2025, 05, 22, 12, 0, 0),
+        TicketPrice = 22.5m,
+        CreatedDate = DateTime.Now,
         CreatedBy = "TestUser1"
     };
     var match4 = new Match
@@ -50,8 +207,9 @@ async Task InsertMoreMatches() //cip...81
         HomeTeamId = 3,
         HomeTeamScore = 0,
         AwayTeamScore = 1,
-        Date = new DateTime(2025, 05, 21),
-        TicketPrice = 20,
+        Date = new DateTime(2025, 05, 23, 15, 30, 0),
+        TicketPrice = 22.5m,
+        CreatedDate = DateTime.Now,
         CreatedBy = "TestUser1"
     };
     await context.AddRangeAsync(match1, match2, match3, match4);
@@ -77,8 +235,8 @@ async Task FilteringIncludes() //cip...81
 }
 
 //projects and anonymous types
-await ProjectsAndAnonymousTypes();
-async Task ProjectsAndAnonymousTypes() //cip...81
+//await ProjectedAndAnonymousTypes();
+async Task ProjectedAndAnonymousTypes() //cip...81
 {
     //NOTE: i'm accessing the Coach table without a .Include.
     var teams = await context.Teams
@@ -98,19 +256,20 @@ async Task ProjectsAndAnonymousTypes() //cip...81
     }
 }
 
+#endregion
 
 #region Related Data  //cip...76
 
 //insert record with fk
-//await InsertMatch();
-async Task InsertMatch() //cip...76
+//await InsertMatchAsync();
+async Task InsertMatchAsync() //cip...76
 {
     var match1 = new Match
     {
         HomeTeamScore = 0,
         AwayTeamScore = 0,
         TicketPrice = 22.50m,
-        Date = new DateTime(2025, 5, 24, 13, 0, 0),
+        Date = new DateTime(2025, 5, 19, 13, 0, 0),
         HomeTeamId = 2,
         AwayTeamId = 1,
         CreatedDate = DateTime.Now,
@@ -314,6 +473,7 @@ async Task LazyLoadingData2Async() //cip...80
         }
     }
 }
+
 #endregion
 
 #region inserting data //cip...49
@@ -446,10 +606,10 @@ async Task UpdateAsync() //cip...50
     Console.WriteLine("before save 3: " + context.ChangeTracker.DebugView.LongView);
     await context.SaveChangesAsync();
     context.Update(coach); //cip...50. NOTE: it's not sure what changed so all the field(name)s, apart from the ID field, will be upadted.
-    //or
-    //context.UpdateRange(coaches);
-    //it's also the equivalent as:
-    //context.Entry(coach).State = EntityState.Modified;
+                           //or
+                           //context.UpdateRange(coaches);
+                           //it's also the equivalent as:
+                           //context.Entry(coach).State = EntityState.Modified;
     Console.WriteLine("before save 4: " + context.ChangeTracker.DebugView.LongView);
     await context.SaveChangesAsync();
     Console.WriteLine("after all updates: " + context.ChangeTracker.DebugView.LongView);
@@ -491,9 +651,9 @@ async Task ExecuteDeleteAsync() //cip...52
     await context.Coaches
         .Where(q => q.Name == "Theodore Whitmore")
         .ExecuteDeleteAsync(); //cip...52. NOTE: this is a new method in ef core 7.0. it will delete all records that meet the condition.
-    // vscode help:
-    //     (awaitable, extension) Task<int> IQueryable<Coach>.ExecuteDeleteAsync<Coach>([CancellationToken cancellationToken = default])
-    //     Asynchronously deletes database rows for the entity instances which match the LINQ query from the database.
+                               // vscode help:
+                               //     (awaitable, extension) Task<int> IQueryable<Coach>.ExecuteDeleteAsync<Coach>([CancellationToken cancellationToken = default])
+                               //     Asynchronously deletes database rows for the entity instances which match the LINQ query from the database.
 
     //     This operation executes immediately against the database, rather than being deferred until DbContext.SaveChanges() is called. It also does not interact with the EF change tracker in any way: entity instances which happen to be tracked when this operation is invoked aren't taken into account, and aren't updated to reflect the changes.
 
@@ -692,14 +852,14 @@ async Task OrderByMethodsAsync() //cip...39
 
     //MaxBy (not currently asynchronous)
     var maxBy = context.Teams.MaxBy(q => q.Id); //cip...39. returns the record with the max value Id
-    //it's standard equivalent:
+                                                //it's standard equivalent:
     var maxByDescOrderedTeams = await context.Teams
         .OrderByDescending(q => q.Id) //descending order
         .FirstOrDefaultAsync(); //cip...39. returns the record with the max value Id
 
     //MinBy (not currently asynchronous)
     var minBy = context.Teams.MinBy(q => q.Id); //cip...39. returns the record with the min value Id
-    //it's standard equivalent:
+                                                //it's standard equivalent:
     var minByDescOrderedTeams = await context.Teams
         .OrderBy(q => q.Id) //ascending order
         .FirstOrDefaultAsync(); //cip...39. returns the record with the min value Id
@@ -764,7 +924,7 @@ async Task GetAllTeamsQuerySyntaxAsync() //cip...36
     Console.Write("Enter search term: ");
     //var desiredTeam = Console.ReadLine(); // Read the input from the user //cip...34
     var searchTerm = Console.ReadLine(); // Read the input from the user //cip...35
-    //SELECT * FROM Teams
+                                         //SELECT * FROM Teams
     var teams = await (
         from t
         in context.Teams
@@ -783,7 +943,7 @@ async Task GetFilteredTeamsAsync() //cip...34
     Console.Write("Enter search term: ");
     //var desiredTeam = Console.ReadLine(); // Read the input from the user //cip...34
     var searchTerm = Console.ReadLine(); // Read the input from the user //cip...35
-    // Use the input to filter the teams
+                                         // Use the input to filter the teams
     var teamsFiltered = await context.Teams.Where(q => q.Name == searchTerm).ToListAsync();
     foreach (var team in teamsFiltered)
     {
@@ -856,7 +1016,7 @@ async Task GetAllTeams() //cip...33
     }
 }
 
-class TeamInfo
+public class TeamInfo
 {
     public int Id { get; set; }
     public string Name { get; set; }
