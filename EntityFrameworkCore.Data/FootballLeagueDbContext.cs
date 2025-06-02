@@ -53,7 +53,7 @@ public class FootballLeagueDbContext : DbContext
     public string DbPath { get; private set; }
 }
 
-public class FootbalLeagueDbContextFactory : IDesignTimeDbContextFactory<FootballLeagueDbContext> //cip...100. This class is used to create a DbContext instance at design time, such as during migrations or scaffolding.
+public class FootballLeagueDbContextFactory : IDesignTimeDbContextFactory<FootballLeagueDbContext> //cip...100. This class is used to create a DbContext instance at design time, such as during migrations or scaffolding.
 {
     public FootballLeagueDbContext CreateDbContext(string[] args)
     {
@@ -67,7 +67,7 @@ public class FootbalLeagueDbContextFactory : IDesignTimeDbContextFactory<Footbal
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
         var dbPath = Path.Combine(path, configuration.GetConnectionString("SqliteDatabaseConnectionString"));
-        var sqlServerDatabaseConnectionString = configuration.GetConnectionString("SqliteDatabaseConnectionString");
+        var sqlServerDatabaseConnectionString = configuration.GetConnectionString("SqlServerDatabaseConnectionString");
 
         var optionsBuilder = new DbContextOptionsBuilder<FootballLeagueDbContext>();
         //optionsBuilder.UseSqlite($"Data Source={dbPath}");
