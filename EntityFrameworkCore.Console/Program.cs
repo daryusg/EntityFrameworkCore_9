@@ -2,10 +2,19 @@
 using EntityFrameworkCore.Domain;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
-//first i need an instance of the context
-DbContextOptions<FootballLeagueDbContext> options = new DbContextOptions<FootballLeagueDbContext>(); //cip...102. i need to verify where this was added. i copied from tw so i could run: update-database on new docker instance
-using var context = new FootballLeagueDbContext(options);
+// from chatgpt 02/06/25   -----------------------------------------------------------------
+// Get connection string
+string connectionString = "Data Source=localhost,1448;Initial Catalog=FootballLeague_EFCore;Encrypt=False;user id=sa;password=Str0ngPa$$w0rd;";
+
+// Configure DbContext
+var optionsBuilder = new DbContextOptionsBuilder<FootballLeagueDbContext>();
+optionsBuilder.UseSqlServer(connectionString);
+
+using var context = new FootballLeagueDbContext(optionsBuilder.Options);
+// from chatgpt 02/06/25   -----------------------------------------------------------------
+
 //context.Database.MigrateAsync(); //cip...63. NOTE: this will create the database if it doesn't exist and apply any pending migrations. it will not create the database if it already exists.
 
 //for sqlite users to see where the db file gets created:
@@ -36,7 +45,7 @@ async Task ExecutingRawSQL() //cip...89
     var teams = context.Teams.FromSqlRaw("SELECT * FROM Teams WHERE Name = @teamName", teamNameParam);
     foreach (var t in teams)
     {
-        Console.WriteLine($"Team: {t.Name}, Created Date: {t.CreatedDate}");
+        Console.WriteLine($"Team: {t.Name}, Created  : {t.CreatedDate}");
     }
 
     //FromSql
@@ -102,7 +111,7 @@ async Task QueryingScalar()
 }
 
 //execute user-defined query
-await ExecuteUserDefinedFunctionAsync();
+//await ExecuteUserDefinedFunctionAsync();
 async Task ExecuteUserDefinedFunctionAsync()
 {
     int teamId = 0;
@@ -204,7 +213,7 @@ async Task InsertMoreMatchesAsync() //cip...81
     };
     var match4 = new Match
     {
-        AwayTeamId = 4,
+        AwayTeamId = 1001, //different from vscode
         HomeTeamId = 3,
         HomeTeamScore = 0,
         AwayTeamScore = 1,
@@ -298,7 +307,7 @@ async Task InsertMatchAsync() //cip...76
 }
 
 //insert parent/child
-//await InsertTeamWithCoachAsync();
+//wait InsertTeamWithCoachAsync();
 async Task InsertTeamWithCoachAsync() //cip...76
 {
     var team = new Team
