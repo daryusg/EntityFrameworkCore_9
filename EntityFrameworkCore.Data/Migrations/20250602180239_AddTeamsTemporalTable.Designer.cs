@@ -4,6 +4,7 @@ using EntityFrameworkCore.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EntityFrameworkCore.Data.Migrations
 {
     [DbContext(typeof(FootballLeagueDbContext))]
-    partial class FootballLeagueDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250602180239_AddTeamsTemporalTable")]
+    partial class AddTeamsTemporalTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -232,9 +235,7 @@ namespace EntityFrameworkCore.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("PeriodEnd")
                         .ValueGeneratedOnAddOrUpdate()
@@ -254,7 +255,8 @@ namespace EntityFrameworkCore.Data.Migrations
                     b.HasIndex("LeagueId");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[Name] IS NOT NULL");
 
                     b.ToTable("Teams", (string)null);
 
