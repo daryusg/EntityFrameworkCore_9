@@ -3,7 +3,6 @@ using EntityFrameworkCore.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace EntityFrameworkCore.Data;
 
@@ -43,6 +42,15 @@ public class FootballLeagueDbContext : DbContext
         modelBuilder.HasDbFunction(typeof(FootballLeagueDbContext).GetMethod(nameof(GetEarliestTeamMatch), new[] { typeof(int) })).HasName("fn_GetEarliestMatch"); //cip...92.
     }
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) //cip...111
+    {
+        //base.ConfigureConventions(configurationBuilder);
+        //configure all strings
+        configurationBuilder.Properties<string>().HaveMaxLength(100); //cip...111. set the maximum length for all string properties to 100 characters.
+        //configure all decimals
+        configurationBuilder.Properties<decimal>().HavePrecision(18, 2); //cip...111. set the precision for all decimal properties to 18 digits with 2 decimal places.
+    }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) //cip...108. it returns the number of rows affected.
     {
         var entries = ChangeTracker.Entries<BaseDomainModel>()
@@ -61,6 +69,8 @@ public class FootballLeagueDbContext : DbContext
                 entry.Entity.ModifiedDate = now;
                 entry.Entity.ModifiedBy = "TestUser1";
             }
+
+            entry.Entity.RowGuid = Guid.NewGuid(); //cip...113. set RowGuid for concurrency control.
         }
         return base.SaveChangesAsync(cancellationToken);
     }

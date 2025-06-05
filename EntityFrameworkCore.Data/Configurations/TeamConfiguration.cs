@@ -11,13 +11,23 @@ internal class TeamConfiguration : IEntityTypeConfiguration<Team> //cip...59. in
     {
         //NOTE: all constraints that can be added at the database level can be added here (in the configuration). cip...110
         builder.HasIndex(q => q.Name).IsUnique(); //cip...72. Added to ensure that team names are unique in the database.
+        //composite key configuration.
+        //builder.HasIndex(q => new { q.CoachId, q.LeagueId }).IsUnique(); //cip...110
 
-        //builder.HasIndex(q => new { q.CoachId, q.LeagueId }).IsUnique(); //cip...110 composite key configuration.
         builder.Property(q => q.Name)
             .IsRequired()
             .HasMaxLength(100); //cip...110. this overides eg the name's nullability and the default max length of 450 characters for string properties in EF Core.
 
+        //for sql server only
+        //builder.Property(q => q.RowVersion)
+        //    .IsRowVersion(); //cip...113. this is used for concurrency control. It will be automatically updated by the database when the row is updated.
+
+        //for sqlite and sqlserver
+        builder.Property(q => q.RowGuid)
+            .IsConcurrencyToken(); //cip...113. this is used for concurrency control. It will be automatically updated by the database when the row is updated.
+
         builder.ToTable("Teams", t => t.IsTemporal()); //cip...109. "Teams" table is temporal, meaning it will keep track of historical data changes. This is useful for auditing and tracking changes over time.
+
         //---------------------------------------------------------------------------
         //cip...72. set up the many-to-many relationship
         //---------------------------------------------------------------------------
@@ -35,9 +45,9 @@ internal class TeamConfiguration : IEntityTypeConfiguration<Team> //cip...59. in
         //---------------------------------------------------------------------------
 
         builder.HasData(
-            new Team { Id = 1, Name = "Tivoli Gardens FC", CreatedDate = new DateTime(2025, 5, 9, 18, 0, 0), CreatedBy = "TestUser1", LeagueId = 1, CoachId = 1 }, //hard-coding due to migration errors. DateTimeOffset.UtcNow.DateTime
-            new Team { Id = 2, Name = "Waterhouse FC", CreatedDate = new DateTime(2025, 5, 9, 18, 0, 1), CreatedBy = "TestUser1", LeagueId = 1, CoachId = 2 },
-            new Team { Id = 3, Name = "Humble Lions FC", CreatedDate = new DateTime(2025, 5, 9, 18, 0, 2), CreatedBy = "TestUser1", LeagueId = 1, CoachId = 3 }
+          new Team { Id = 1, Name = "Tivoli Gardens FC", CreatedDate = new DateTime(2025, 5, 9, 18, 0, 0), CreatedBy = "TestUser1", LeagueId = 1, CoachId = 1 }, //hard-coding due to migration errors. DateTimeOffset.UtcNow.DateTime
+          new Team { Id = 2, Name = "Waterhouse FC", CreatedDate = new DateTime(2025, 5, 9, 18, 0, 1), CreatedBy = "TestUser1", LeagueId = 1, CoachId = 2 },
+          new Team { Id = 3, Name = "Humble Lions FC", CreatedDate = new DateTime(2025, 5, 9, 18, 0, 2), CreatedBy = "TestUser1", LeagueId = 1, CoachId = 3 }
         ); //cip...24. cip...58 added for new col , CreatedBy = "TestUser1"
     }
 }
