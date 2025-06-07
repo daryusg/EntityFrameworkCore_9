@@ -27,8 +27,15 @@ var connectionString = builder.Configuration.GetConnectionString("SqlServerDatab
 builder.Services.AddDbContext<FootballLeagueDbContext>(options =>
 {
     //options allows replacement of the FootballLeagueDbContext.OnConfiguring method //cip...99
-    options.UseSqlServer(connectionString) //cip...99
-    //options.UseSqlite(connectionString) //cip...99
+    options.UseSqlServer(connectionString, sqlserverOptions =>
+    {
+        //sqlserverOptions.MigrationsAssembly("EntityFrameworkCore.Data");
+        //sqlserverOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+        //sqlserverOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo"); //tw mention
+        //sqlserverOptions.CommandTimeout(30); //cip...115. Set command timeout to 30 seconds
+        sqlserverOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null); //cip...115 Enable retry on failure for transient errors
+    }) //cip...99
+        //options.UseSqlite(connectionString) //cip...99
         //.UseLazyLoadingProxies()
         .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
         .LogTo(Console.WriteLine, LogLevel.Information);
